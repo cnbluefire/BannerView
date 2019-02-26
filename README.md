@@ -10,4 +10,4 @@ Perspective
 ![Perspective](http://statics.ultrabluefire.cn/BannerViewDemo3.gif)
 
 Perspective Scale
-![Perspective Scale](http://statics.ultrabluefire.cn/BannerViewDemo4.gif)
+![Perspective Scale](http://statics.ultrabluefire.cn/BannerViewDemo5.gif)
