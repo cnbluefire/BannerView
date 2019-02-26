@@ -121,6 +121,7 @@
     </Compile>
     <Compile Include="Controls\BannerView.cs" />
     <Compile Include="Controls\BannerViewItem.cs" />
+    <Compile Include="Controls\CycleCollectionProvider.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>

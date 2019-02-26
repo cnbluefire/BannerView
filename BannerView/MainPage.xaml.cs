@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BannerView.Controls;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -26,20 +27,22 @@ namespace BannerView
         public MainPage()
         {
             this.InitializeComponent();
-            List = new ObservableCollection<Uri>();
+            var list = new ObservableCollection<Uri>();
 
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/20/20180220190934_4dUPY.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/12/20180212191436_cEMAv.thumb.700_0.png"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201705/13/20170513161114_sBZQt.thumb.700_0.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201801/10/20180110235519_hPWxd.thumb.700_0.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201608/26/20160826143514_FsNrd.thumb.700_0.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201705/13/20170513135021_KSBix.thumb.700_0.png"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201709/07/20170907202246_LdAJj.thumb.700_0.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615514_Utj3A.thumb.700_0.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615123_UEUMa.thumb.700_0.jpeg"));
-            List.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615123_EechF.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/20/20180220190934_4dUPY.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/12/20180212191436_cEMAv.thumb.700_0.png"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201705/13/20170513161114_sBZQt.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201801/10/20180110235519_hPWxd.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201608/26/20160826143514_FsNrd.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201705/13/20170513135021_KSBix.thumb.700_0.png"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201709/07/20170907202246_LdAJj.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615514_Utj3A.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615123_UEUMa.thumb.700_0.jpeg"));
+            list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615123_EechF.thumb.700_0.jpeg"));
+
+            List = new CycleCollectionProvider<Uri>(list);
         }
 
-        ObservableCollection<Uri> List { get; set; }
+        CycleCollectionProvider<Uri> List { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -26,6 +27,7 @@ namespace BannerView.Controls
         private Visual panelVisual;
         private ExpressionAnimation perspectiveMatrixExp;
         private ExpressionAnimation panelPerspectiveExp;
+        private CycleSelectionState CycleSelectionState;
 
         #endregion Composition Resources
 
@@ -59,22 +61,74 @@ namespace BannerView.Controls
 
         #endregion Template Parts
 
+        #region Marks
+
+        protected bool IsLoaded { get; private set; }
+
+        #endregion Marks
+
         #region Ctor
         public BannerView()
         {
             this.DefaultStyleKey = typeof(BannerView);
             RegisterPropertyChangedCallback(FlipView.VerticalContentAlignmentProperty, VerticalContentAlignmentPropertyChanged);
+            this.SelectionChanged += OnSelectionChanged;
+            this.Loaded += OnLoaded;
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            IsLoaded = true;
+            InitComposition();
+            InitCycleSelectedIndex();
+            UpdateSelectedIndex(null);
         }
 
         #endregion Ctor
 
         #region Property Changed Methods
+
         private void VerticalContentAlignmentPropertyChanged(DependencyObject sender, DependencyProperty dp)
         {
             UpdateCenterPoint();
         }
 
+        private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            //if (!IsLoaded) return;
+            //UpdateSelectedIndex(e);
+            if (IsCycleEnable())
+            {
+                if (SelectedIndex == 0)
+                {
+                    CycleSelectionState = CycleSelectionState.Footer;
+                }
+                else
+                {
+                    var list = GetCycleItemsSource();
+                    if (SelectedIndex == list.Count - 1)
+                    {
+                        CycleSelectionState = CycleSelectionState.Header;
+                    }
+                }
+            }
+        }
+
         #endregion Property Changed Methods
+
+        #region Methods
+
+        protected bool IsCycleEnable()
+        {
+            return ItemsSource.GetType().GetGenericTypeDefinition() == typeof(CycleCollectionProvider<>);
+        }
+
+        protected IList GetCycleItemsSource()
+        {
+            return (IList)ItemsSource;
+        }
+
+        #endregion Methods
 
         #region Overrides
         protected override void OnApplyTemplate()
@@ -82,7 +136,21 @@ namespace BannerView.Controls
             base.OnApplyTemplate();
 
             scrollingHost = GetTemplateChild("ScrollingHost") as ScrollViewer;
-            this.Loaded += (s, a) => InitComposition();
+            scrollingHost.ViewChanged += ScrollingHost_ViewChanged;
+        }
+
+        private void ScrollingHost_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
+        {
+            if (!e.IsIntermediate)
+            {
+                if (!IsLoaded) return;
+                if (!IsCycleEnable()) return;
+                if (CycleSelectionState != CycleSelectionState.None)
+                {
+                    CycleSelectionState = CycleSelectionState.None;
+                    UpdateSelectedIndex(null);
+                }
+            }
         }
 
         protected override DependencyObject GetContainerForItemOverride()
@@ -323,6 +391,46 @@ namespace BannerView.Controls
 
         #region Update Properties
 
+        private void InitCycleSelectedIndex()
+        {
+            if (IsCycleEnable())
+            {
+                var list = GetCycleItemsSource();
+                if (list.Count > 3)
+                {
+                    SelectedIndex = 1;
+                    OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { list[SelectedIndex] }));
+                }
+            }
+        }
+
+        private void UpdateSelectedIndex(SelectionChangedEventArgs args)
+        {
+            if (IsCycleEnable())
+            {
+                var list = GetCycleItemsSource();
+                if (list.Count < 3) return;
+                if (SelectedIndex == 0)
+                {
+                    SelectedIndex = list.Count - 2;
+                }
+                else if (SelectedIndex == list.Count - 1)
+                {
+                    SelectedIndex = 1;
+                }
+
+                if (args == null)
+                {
+                    OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { SelectedIndex }));
+                }
+                else
+                {
+                    OnCycleSelectionChanged(args);
+                }
+            }
+        }
+
+
         private void UpdateItemSpacing()
         {
             if (props != null)
@@ -407,10 +515,22 @@ namespace BannerView.Controls
                     visual.RotationAngle = 0f;
                 }
             }
-
-            #endregion Update Properties
-
         }
 
+        #endregion Update Properties
+
+
+        public event SelectionChangedEventHandler CycleSelectionChanged;
+
+        protected void OnCycleSelectionChanged(SelectionChangedEventArgs e)
+        {
+            CycleSelectionChanged?.Invoke(this, e);
+        }
     }
+
+    internal enum CycleSelectionState
+    {
+        None, Header, Footer
+    }
+
 }
