@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Windows.Foundation.Metadata;
 using Windows.UI;
 using Windows.UI.Composition;
 using Windows.UI.Xaml;
@@ -19,7 +20,7 @@ namespace BannerView.Controls
         private Rectangle backgroundRect;
 
         private DropShadow dropShadow;
-        internal Compositor Compositor => Window.Current.Compositor;
+        internal Compositor Compositor;
 
         public BannerViewItem()
         {
@@ -48,6 +49,16 @@ namespace BannerView.Controls
 
         private void InitComposition()
         {
+                Compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
+            //if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 4))
+            //{
+            //    Compositor = Window.Current.Compositor;
+            //}
+            //else
+            //{
+            //    Compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
+            //}
+
             var visual = Compositor.CreateSpriteVisual();
             var sizebind = Compositor.CreateExpressionAnimation("rect.Size");
             sizebind.SetReferenceParameter("rect", ElementCompositionPreview.GetElementVisual(backgroundRect));

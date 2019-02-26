@@ -5,10 +5,12 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.Foundation.Metadata;
 using Windows.UI.Composition;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Hosting;
+using Windows.UI.Xaml.Media;
 
 namespace BannerView.Controls
 {
@@ -16,7 +18,7 @@ namespace BannerView.Controls
     {
         #region Composition Resources
 
-        internal Compositor Compositor => Window.Current.Compositor;
+        internal Compositor Compositor;
 
         private CompositionPropertySet scrollProps;
         private CompositionPropertySet props;
@@ -42,7 +44,7 @@ namespace BannerView.Controls
         /// <summary>
         /// 计算Index与SelectedIndex之间距离节点
         /// </summary>
-        private const string DistanceNode = "((-scroll.Translation.X - target.Offset.X) / target.Size.X)";
+        private const string DistanceNode = "((scroll.Translation.X + target.Offset.X) / target.Size.X)";
 
         /// <summary>
         /// 计算Index与SelectedIndex之间距离节点，取值在-1到1之间
@@ -108,13 +110,22 @@ namespace BannerView.Controls
         /// </summary>
         private void InitComposition()
         {
+            if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 4))
+            {
+                Compositor = Window.Current.Compositor;
+            }
+            else
+            {
+                Compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
+            }
+
             scrollProps = ElementCompositionPreview.GetScrollViewerManipulationPropertySet(scrollingHost);
             thisVisual = ElementCompositionPreview.GetElementVisual(this);
             panelVisual = ElementCompositionPreview.GetElementVisual(ItemsPanelRoot);
             props = Compositor.CreatePropertySet();
             props.InsertMatrix4x4("perspective", Matrix4x4.Identity);
             props.InsertScalar("ItemsSpacing", 0f);
-            props.InsertScalar("PerspectiveSpacing", 0f);
+            props.InsertScalar("PerspectiveSpacing", 20f);
             props.InsertScalar("CenterPointY", 0f);
 
             UpdateCenterPoint();
@@ -186,22 +197,47 @@ namespace BannerView.Controls
 
         private void CreateOffsetAnimation(UIElement element)
         {
-            ElementCompositionPreview.SetIsTranslationEnabled(element, true);
             var visual = ElementCompositionPreview.GetElementVisual(element);
 
-            var itemOffsetExp = Compositor.CreateExpressionAnimation($"{ClampedDistanceNode} * (prop.ItemsSpacing + prop.PerspectiveSpacing)");
+            var itemOffsetExp = Compositor.CreateExpressionAnimation($"-{ClampedDistanceNode} * (prop.ItemsSpacing + prop.PerspectiveSpacing)");
             itemOffsetExp.SetReferenceParameter("prop", props);
             itemOffsetExp.SetReferenceParameter("scroll", scrollProps);
             itemOffsetExp.SetReferenceParameter("target", visual);
 
-            visual.StartAnimation("Translation.X", itemOffsetExp);
+            if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 4))
+            {
+                ElementCompositionPreview.SetIsTranslationEnabled(element, true);
+                visual.StartAnimation("Translation.X", itemOffsetExp);
+            }
+            else if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 3))
+            {
+                var child = VisualTreeHelper.GetChild(element, 0) as UIElement;
+                if (child == null)
+                {
+                    ((FrameworkElement)element).Loaded += _Loaded;
+                }
+                else
+                {
+                    _Loaded(null, null);
+                }
+
+                void _Loaded(object sender, RoutedEventArgs e)
+                {
+                    child = VisualTreeHelper.GetChild(element, 0) as UIElement;
+                    if (child != null)
+                    {
+                        ElementCompositionPreview.GetElementVisual(child).StartAnimation("Offset.X", itemOffsetExp);
+                    }
+                }
+            }
         }
+
 
         private void CreateCenterPointAnimation(UIElement element)
         {
             var visual = ElementCompositionPreview.GetElementVisual(element);
 
-            var itemCenterPointExp = Compositor.CreateExpressionAnimation($"Vector3(({ClampedDistanceNode} + 1) * target.Size.X * 0.5, prop.CenterPointY, 0f)");
+            var itemCenterPointExp = Compositor.CreateExpressionAnimation($"Vector3((1 - {ClampedDistanceNode}) * target.Size.X * 0.5, prop.CenterPointY, 0f)");
             itemCenterPointExp.SetReferenceParameter("prop", props);
             itemCenterPointExp.SetReferenceParameter("scroll", scrollProps);
             itemCenterPointExp.SetReferenceParameter("target", visual);
@@ -211,16 +247,18 @@ namespace BannerView.Controls
 
         private void CreateRotationAnimation(UIElement element)
         {
-            var visual = ElementCompositionPreview.GetElementVisual(element);
+            if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 4))
+            {
+                var visual = ElementCompositionPreview.GetElementVisual(element);
 
-            var itemRotationExp = Compositor.CreateExpressionAnimation($"-0.2 * Pi * {ClampedDistanceNode}");
-            itemRotationExp.SetReferenceParameter("scroll", scrollProps);
-            itemRotationExp.SetReferenceParameter("target", visual);
+                var itemRotationExp = Compositor.CreateExpressionAnimation($"0.2 * Pi * {ClampedDistanceNode}");
+                itemRotationExp.SetReferenceParameter("scroll", scrollProps);
+                itemRotationExp.SetReferenceParameter("target", visual);
 
-            visual.RotationAxis = new Vector3(0f, 1f, 0f);
+                visual.RotationAxis = new Vector3(0f, 1f, 0f);
 
-            visual.StartAnimation("RotationAngle", itemRotationExp);
-
+                visual.StartAnimation("RotationAngle", itemRotationExp);
+            }
         }
 
         #endregion Create Animations
@@ -321,7 +359,7 @@ namespace BannerView.Controls
         {
             if (props == null) return;
 
-            if (IsPerspectiveEnable)
+            if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 4) && IsPerspectiveEnable)
             {
                 props.InsertScalar("PerspectiveSpacing", 0f);
 
