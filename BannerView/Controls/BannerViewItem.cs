@@ -20,7 +20,19 @@ namespace BannerView.Controls
         private Rectangle backgroundRect;
 
         private DropShadow dropShadow;
+        private ImplicitAnimationCollection imps;
         internal Compositor Compositor;
+        private bool isCycleItemContainer;
+
+        public bool IsCycleItemContainer
+        {
+            get => isCycleItemContainer;
+            set
+            {
+                isCycleItemContainer = value;
+                UpdateShadowAnimation();
+            }
+        }
 
         public BannerViewItem()
         {
@@ -49,7 +61,7 @@ namespace BannerView.Controls
 
         private void InitComposition()
         {
-                Compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
+            Compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
             //if (ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 4))
             //{
             //    Compositor = Window.Current.Compositor;
@@ -70,17 +82,31 @@ namespace BannerView.Controls
             dropShadow.Offset = Vector3.Zero;
             dropShadow.BlurRadius = IsSelected ? 8f : 0f;
 
-            dropShadow.ImplicitAnimations = Compositor.CreateImplicitAnimationCollection();
+            imps = Compositor.CreateImplicitAnimationCollection();
             var blur_an = Compositor.CreateScalarKeyFrameAnimation();
             blur_an.InsertExpressionKeyFrame(1f, "this.FinalValue");
             blur_an.Duration = TimeSpan.FromSeconds(0.2d);
             blur_an.Target = "BlurRadius";
-            dropShadow.ImplicitAnimations["BlurRadius"] = blur_an;
+            imps["BlurRadius"] = blur_an;
 
             visual.Shadow = dropShadow;
 
             ElementCompositionPreview.SetElementChildVisual(shadowHost, visual);
             UpdateShadow();
+            UpdateShadowAnimation();
+        }
+
+        private void UpdateShadowAnimation()
+        {
+            if (imps == null) return;
+            if (IsCycleItemContainer)
+            {
+                dropShadow.ImplicitAnimations = null;
+            }
+            else
+            {
+                dropShadow.ImplicitAnimations = imps;
+            }
         }
 
         private void UpdateShadow()

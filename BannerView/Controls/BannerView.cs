@@ -10,6 +10,7 @@ using Windows.Foundation.Metadata;
 using Windows.UI.Composition;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Controls.Primitives;
 using Windows.UI.Xaml.Hosting;
 using Windows.UI.Xaml.Media;
 
@@ -82,6 +83,17 @@ namespace BannerView.Controls
             InitComposition();
             InitCycleSelectedIndex();
             UpdateSelectedIndex(null);
+
+            if (ItemsPanelRoot is VirtualizingStackPanel vsp)
+            {
+                vsp.CleanUpVirtualizedItemEvent += (s, a) =>
+                 {
+                     if (a.UIElement is BannerViewItem container && container.IsCycleItemContainer)
+                     {
+                         a.Cancel = true;
+                     }
+                 };
+            }
         }
 
         #endregion Ctor
@@ -165,8 +177,51 @@ namespace BannerView.Controls
 
         protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
         {
+            if (element is BannerViewItem container)
+            {
+                if (IsCycleItem(item))
+                {
+                    container.IsCycleItemContainer = true;
+                }
+                else
+                {
+                    container.IsCycleItemContainer = false;
+                }
+            }
             CreateAnimation((UIElement)element);
             base.PrepareContainerForItemOverride(element, item);
+        }
+
+        protected override void ClearContainerForItemOverride(DependencyObject element, object item)
+        {
+            if (element is BannerViewItem container)
+            {
+                container.IsCycleItemContainer = false;
+            }
+            base.ClearContainerForItemOverride(element, item);
+        }
+
+        private bool IsCycleItem(object item)
+        {
+            if (IsCycleEnable())
+            {
+                var list = GetCycleItemsSource();
+                if (list.Count > 2)
+                {
+                    if (list[0].Equals(item) || list[list.Count - 1].Equals(item)) return true;
+
+                    if (list.Count > 3)
+                    {
+                        if (list[1].Equals(item) || list[list.Count - 2].Equals(item)) return true;
+
+                        if (list.Count > 4)
+                        {
+                            if (list[2].Equals(item) || list[list.Count - 3].Equals(item)) return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         #endregion Overrides
@@ -396,7 +451,7 @@ namespace BannerView.Controls
             if (IsCycleEnable())
             {
                 var list = GetCycleItemsSource();
-                if (list.Count > 3)
+                if (list.Count > 2)
                 {
                     SelectedIndex = 1;
                     OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { list[SelectedIndex] }));
@@ -410,13 +465,31 @@ namespace BannerView.Controls
             {
                 var list = GetCycleItemsSource();
                 if (list.Count < 3) return;
+                int index = -1;
                 if (SelectedIndex == 0)
                 {
-                    SelectedIndex = list.Count - 2;
+                    index = list.Count - 2;
                 }
                 else if (SelectedIndex == list.Count - 1)
                 {
-                    SelectedIndex = 1;
+                    index = 1;
+
+                }
+
+                if (index != -1)
+                {
+                    var position = ItemContainerGenerator.GeneratorPositionFromIndex(index);
+                    ItemContainerGenerator.StartAt(position, GeneratorDirection.Forward, true);
+                    var container = ItemContainerGenerator.GenerateNext(out var isNew);
+                    ItemContainerGenerator.Stop();
+
+                    if (isNew)
+                    {
+                        ItemContainerGenerator.PrepareItemContainer(container);
+                        ItemsPanelRoot.Children.Add((UIElement)container);
+                    }
+
+                    SelectedIndex = index;
                 }
 
                 if (args == null)
