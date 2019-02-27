@@ -82,7 +82,7 @@ namespace BannerView.Controls
             IsLoaded = true;
             InitComposition();
             InitCycleSelectedIndex();
-            UpdateSelectedIndex(null);
+            UpdateSelectedIndex();
 
             if (ItemsPanelRoot is VirtualizingStackPanel vsp)
             {
@@ -107,21 +107,16 @@ namespace BannerView.Controls
 
         private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            //if (!IsLoaded) return;
-            //UpdateSelectedIndex(e);
             if (IsCycleEnable())
             {
-                if (SelectedIndex == 0)
+                var list = GetCycleItemsSource();
+                if (list.IsHeader(SelectedIndex))
                 {
                     CycleSelectionState = CycleSelectionState.Footer;
                 }
-                else
+                else if (list.IsFooter(SelectedIndex))
                 {
-                    var list = GetCycleItemsSource();
-                    if (SelectedIndex == list.Count - 1)
-                    {
-                        CycleSelectionState = CycleSelectionState.Header;
-                    }
+                    CycleSelectionState = CycleSelectionState.Header;
                 }
             }
         }
@@ -135,9 +130,9 @@ namespace BannerView.Controls
             return ItemsSource.GetType().GetGenericTypeDefinition() == typeof(CycleCollectionProvider<>);
         }
 
-        protected IList GetCycleItemsSource()
+        protected ICycleCollectionProvider GetCycleItemsSource()
         {
-            return (IList)ItemsSource;
+            return (ICycleCollectionProvider)ItemsSource;
         }
 
         #endregion Methods
@@ -160,7 +155,7 @@ namespace BannerView.Controls
                 if (CycleSelectionState != CycleSelectionState.None)
                 {
                     CycleSelectionState = CycleSelectionState.None;
-                    UpdateSelectedIndex(null);
+                    UpdateSelectedIndex();
                 }
             }
         }
@@ -206,20 +201,7 @@ namespace BannerView.Controls
             if (IsCycleEnable())
             {
                 var list = GetCycleItemsSource();
-                if (list.Count > 2)
-                {
-                    if (list[0].Equals(item) || list[list.Count - 1].Equals(item)) return true;
-
-                    if (list.Count > 3)
-                    {
-                        if (list[1].Equals(item) || list[list.Count - 2].Equals(item)) return true;
-
-                        if (list.Count > 4)
-                        {
-                            if (list[2].Equals(item) || list[list.Count - 3].Equals(item)) return true;
-                        }
-                    }
-                }
+                return list.IsCycleItem(item);
             }
             return false;
         }
@@ -453,53 +435,40 @@ namespace BannerView.Controls
                 var list = GetCycleItemsSource();
                 if (list.Count > 2)
                 {
-                    SelectedIndex = 1;
+                    SelectedIndex = list.ConvertFromItemIndex(0);
                     OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { list[SelectedIndex] }));
                 }
             }
         }
 
-        private void UpdateSelectedIndex(SelectionChangedEventArgs args)
+        private void UpdateSelectedIndex()
         {
             if (IsCycleEnable())
             {
-                var list = GetCycleItemsSource();
-                if (list.Count < 3) return;
                 int index = -1;
-                if (SelectedIndex == 0)
+                var list = GetCycleItemsSource();
+                if (list.IsCycleItem(SelectedIndex))
                 {
-                    index = list.Count - 2;
-                }
-                else if (SelectedIndex == list.Count - 1)
-                {
-                    index = 1;
-
+                    index = list.ConvertFromItemIndex(list.ConvertToItemIndex(SelectedIndex));
                 }
 
                 if (index != -1)
                 {
-                    var position = ItemContainerGenerator.GeneratorPositionFromIndex(index);
-                    ItemContainerGenerator.StartAt(position, GeneratorDirection.Forward, true);
-                    var container = ItemContainerGenerator.GenerateNext(out var isNew);
-                    ItemContainerGenerator.Stop();
+                    //var position = ItemContainerGenerator.GeneratorPositionFromIndex(index);
+                    //ItemContainerGenerator.StartAt(position, GeneratorDirection.Forward, true);
+                    //var container = ItemContainerGenerator.GenerateNext(out var isNew);
+                    //ItemContainerGenerator.Stop();
 
-                    if (isNew)
-                    {
-                        ItemContainerGenerator.PrepareItemContainer(container);
-                        ItemsPanelRoot.Children.Add((UIElement)container);
-                    }
+                    //if (isNew)
+                    //{
+                    //    ItemContainerGenerator.PrepareItemContainer(container);
+                    //    ItemsPanelRoot.Children.Add((UIElement)container);
+                    //}
 
                     SelectedIndex = index;
                 }
 
-                if (args == null)
-                {
-                    OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { SelectedIndex }));
-                }
-                else
-                {
-                    OnCycleSelectionChanged(args);
-                }
+                OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { SelectedIndex }));
             }
         }
 

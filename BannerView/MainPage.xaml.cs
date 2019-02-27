@@ -27,7 +27,6 @@ namespace BannerView
         public MainPage()
         {
             this.InitializeComponent();
-            var list = new ObservableCollection<Uri>();
 
             list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/20/20180220190934_4dUPY.jpeg"));
             list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/12/20180212191436_cEMAv.thumb.700_0.png"));
@@ -44,5 +43,7 @@ namespace BannerView
         }
 
         CycleCollectionProvider<Uri> List { get; set; }
+        ObservableCollection<Uri> list = new ObservableCollection<Uri>();
+
     }
 }

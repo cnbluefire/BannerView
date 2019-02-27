@@ -1,103 +1,508 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace BannerView.Controls
 {
-    public class CycleCollectionProvider<T> : ObservableCollection<T>
+    public interface ICycleCollectionProvider : IList
+    {
+        int ItemsCount { get; }
+
+        int ConvertToItemIndex(int index);
+
+        int ConvertFromItemIndex(int index);
+        object GetItem(int index);
+
+        bool IsCycleItem(int index);
+        bool IsCycleItem(object item);
+
+        bool IsHeader(int index);
+
+        bool IsFooter(int index);
+
+        bool IsHeader(object item);
+
+        bool IsFooter(object item);
+
+        int CrossLength { get; }
+    }
+
+    public interface ICycleCollectionProvider<T>
+    {
+        T GetItem(int index);
+        bool IsCycleItem(T item);
+        bool IsHeader(T item);
+
+        bool IsFooter(T item);
+    }
+
+    public class CycleCollectionProvider<T> : IList<T>, INotifyCollectionChanged, INotifyPropertyChanged, ICycleCollectionProvider, ICycleCollectionProvider<T>
     {
         private readonly ObservableCollection<T> collection;
+        private ObservableCollection<T> headers;
+        private ObservableCollection<T> footers;
+        private int crossLength;
 
-        public CycleCollectionProvider(ObservableCollection<T> collection)
+
+        public int CrossLength => crossLength;
+        public CycleCollectionProvider(ObservableCollection<T> collection, int crossLength = 2)
         {
             this.collection = collection;
+            this.crossLength = crossLength;
+
+            headers = new ObservableCollection<T>();
+            footers = new ObservableCollection<T>();
+
+            UpdateCycle();
             UpdateCollection();
-            UpdateHeader();
-            UpdateFooter();
             collection.CollectionChanged += ItemsCollectionChanged;
+            headers.CollectionChanged += InnerHeader_CollectionChanged;
+            footers.CollectionChanged += InnerFooter_CollectionChanged;
+
         }
+
+        private void InnerHeader_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, e.NewItems, e.NewStartingIndex));
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, e.OldItems, e.OldStartingIndex, e.NewStartingIndex));
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, e.OldItems, e.OldStartingIndex));
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, e.NewItems, e.OldItems, e.NewStartingIndex));
+                    break;
+                case NotifyCollectionChangedAction.Reset:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+                    break;
+            }
+        }
+
+        private void InnerFooter_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, e.NewItems, e.NewStartingIndex + headers.Count + ItemsCount));
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, e.OldItems, e.OldStartingIndex + headers.Count + collection.Count, e.NewStartingIndex + headers.Count + collection.Count));
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, e.OldItems, e.OldStartingIndex + headers.Count + ItemsCount));
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, e.NewItems,e.OldItems, e.NewStartingIndex + headers.Count + collection.Count));
+                    break;
+                case NotifyCollectionChangedAction.Reset:
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+                    break;
+            }
+        }
+
+        #region ICycleCollectionProvider
+        public int ItemsCount => collection.Count;
+
+        object ICycleCollectionProvider.GetItem(int index)
+        {
+            return collection[index];
+        }
+
+        public T GetItem(int index)
+        {
+            return collection[index];
+        }
+
+        public int ConvertToItemIndex(int index)
+        {
+            if (index < headers.Count)
+            {
+                return index + ItemsCount - headers.Count;
+            }
+            else if (index > headers.Count + ItemsCount)
+            {
+                return index - headers.Count - ItemsCount;
+            }
+            return index - headers.Count;
+        }
+
+        public int ConvertFromItemIndex(int index)
+        {
+            return index + headers.Count;
+        }
+
+        public bool IsCycleItem(int index)
+        {
+            return IsHeader(index) || IsFooter(index);
+        }
+
+        public bool IsCycleItem(T item)
+        {
+            return IsHeader(item) || IsFooter(item);
+        }
+
+
+        bool ICycleCollectionProvider.IsCycleItem(object item)
+        {
+            return ((ICycleCollectionProvider)this).IsHeader(item) || ((ICycleCollectionProvider)this).IsFooter(item);
+
+        }
+
+        public bool IsHeader(int index)
+        {
+            return index < headers.Count;
+        }
+
+        public bool IsFooter(int index)
+        {
+            return index > headers.Count + collection.Count;
+        }
+
+        public bool IsHeader(T item)
+        {
+            return headers.Contains(item);
+        }
+
+        public bool IsFooter(T item)
+        {
+            return footers.Contains(item);
+        }
+
+        bool ICycleCollectionProvider.IsHeader(object item)
+        {
+            return IsHeader((T)item);
+        }
+
+        bool ICycleCollectionProvider.IsFooter(object item)
+        {
+            return IsFooter((T)item);
+        }
+
+
+        #endregion ICycleCollectionProvider
+
+        #region ICollection
+
+        public int Count => collection.Count + headers.Count + footers.Count;
+
+        public bool IsReadOnly => false;
+
+        public T this[int index]
+        {
+            get
+            {
+                if (index < headers.Count)
+                {
+                    return headers[index];
+                }
+                else if (index < headers.Count + collection.Count)
+                {
+                    return collection[index - headers.Count];
+                }
+                else
+                {
+                    return footers[index - headers.Count - collection.Count];
+                }
+            }
+            set
+            {
+                collection[ConvertToItemIndex(index)] = value;
+            }
+        }
+
+        public void Add(T item)
+        {
+            collection.Add(item);
+        }
+
+        public void Clear()
+        {
+            collection.Clear();
+        }
+
+        public bool Contains(T item)
+        {
+            return collection.Contains(item);
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            if (arrayIndex < headers.Count)
+            {
+                headers.CopyTo(array, arrayIndex);
+                return;
+            }
+            for (int i = 0; i < headers.Count; i++)
+            {
+                array[i] = headers[i];
+                arrayIndex--;
+            }
+            for (int i = 0; i < collection.Count && arrayIndex >= 0; i++, arrayIndex--)
+            {
+                array[i + headers.Count] = collection[i];
+                arrayIndex--;
+            }
+            for (int i = 0; i < footers.Count && arrayIndex >= 0; i++, arrayIndex--)
+            {
+                array[i + headers.Count + collection.Count] = footers[i];
+                arrayIndex--;
+            }
+        }
+
+        public bool Remove(T item)
+        {
+            return collection.Remove(item);
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return new CycleCollectionEnumerator(this);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public int IndexOf(T item)
+        {
+            return ConvertFromItemIndex(collection.IndexOf(item));
+        }
+
+        public void Insert(int index, T item)
+        {
+            collection.Insert(ConvertToItemIndex(index), item);
+        }
+
+        public void RemoveAt(int index)
+        {
+            collection.RemoveAt(ConvertToItemIndex(index));
+        }
+
+        #endregion ICollection
+
+        public void Move(int oldIndex, int newIndex)
+        {
+            collection.Move(ConvertToItemIndex(oldIndex), ConvertToItemIndex(newIndex));
+            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, oldIndex, newIndex));
+        }
+
+        #region INotifyChanged
+
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
+        {
+            CollectionChanged?.Invoke(this, e);
+            OnPropertyChanged("Count");
+            OnPropertyChanged("ItemsCount");
+        }
+
+        protected void OnPropertyChanged([CallerMemberName]string propName = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+        }
+
+        #endregion INotifyChanged
+
 
         private void UpdateCollection()
         {
-            this.Clear();
-            foreach (var item in collection)
-            {
-                this.Add(item);
-            }
+            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+
         }
 
-        private void UpdateHeader()
+        private void UpdateCycle()
         {
-            if (collection.Count > 0)
+            headers.Clear();
+            footers.Clear();
+
+            if (collection.Count == 0) return;
+            if (collection.Count == 1)
             {
-                if (this.Count <= collection.Count + 1)
+                for (int i = 0; i < 2; i++)
                 {
-                    this.Insert(0, collection[collection.Count - 1]);
+                    headers.Add(collection[0]);
+                    footers.Add(collection[0]);
                 }
-                else
+            }
+            else if (collection.Count < crossLength)
+            {
+                for (int i = 0; i < collection.Count; i++)
                 {
-                    if (!EqualityComparer<T>.Default.Equals(this[0], collection[collection.Count - 1]))
-                    {
-                        this[0] = collection[collection.Count - 1];
-                    }
+                    headers.Add(collection[i]);
+                    footers.Add(collection[i]);
                 }
             }
             else
             {
-                this.Clear();
+                for (int i = 0; i < crossLength; i++)
+                {
+                    var reverseIndex = collection.Count - crossLength + i;
+                    headers.Add(collection[reverseIndex]);
+                    footers.Add(collection[i]);
+                }
             }
         }
 
-        private void UpdateFooter()
-        {
-            if (collection.Count > 0)
-            {
-                if (this.Count <= collection.Count + 1)
-                {
-                    this.Add(collection[0]);
-                }
-                else
-                {
-                    if (!EqualityComparer<T>.Default.Equals(this[this.Count - 1], collection[0]))
-                    {
-                        this[this.Count - 1] = collection[0];
-                    }
-                }
-            }
-            else
-            {
-                this.Clear();
-            }
-        }
 
         private void ItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    this.Insert(e.NewStartingIndex, (T)e.NewItems[0]);
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, e.NewItems, ConvertFromItemIndex(e.NewStartingIndex)));
                     break;
                 case NotifyCollectionChangedAction.Move:
-                    this.MoveItem(e.OldStartingIndex, e.NewStartingIndex);
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, e.OldItems, ConvertFromItemIndex(e.OldStartingIndex), ConvertFromItemIndex(e.NewStartingIndex)));
                     break;
                 case NotifyCollectionChangedAction.Remove:
-                    this.RemoveAt(e.OldStartingIndex + 1);
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, e.OldItems, ConvertFromItemIndex(e.OldStartingIndex)));
                     break;
                 case NotifyCollectionChangedAction.Replace:
-                    this[e.OldStartingIndex + 1] = (T)e.NewItems[0];
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace,e.NewItems, e.OldItems, ConvertFromItemIndex(e.NewStartingIndex)));
                     break;
                 case NotifyCollectionChangedAction.Reset:
-                    UpdateCollection();
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
                     break;
             }
-            UpdateHeader();
-            UpdateFooter();
+            UpdateCycle();
         }
 
+        #region IList
+        bool IList.IsFixedSize => true;
+
+        bool IList.IsReadOnly => false;
+
+        int ICollection.Count => this.Count;
+
+        bool ICollection.IsSynchronized => false;
+
+        object ICollection.SyncRoot => null;
+
+        object IList.this[int index]
+        {
+            get => this[index];
+            set => this[index] = (T)value;
+        }
+
+
+        int IList.Add(object value)
+        {
+            this.Add((T)value);
+            return ConvertFromItemIndex(ItemsCount - 1);
+        }
+
+        void IList.Clear()
+        {
+            this.Clear();
+        }
+
+        bool IList.Contains(object value)
+        {
+            return this.Contains((T)value);
+        }
+
+        int IList.IndexOf(object value)
+        {
+            return this.IndexOf((T)value);
+        }
+
+        void IList.Insert(int index, object value)
+        {
+            this.Insert(index, (T)value);
+        }
+
+        void IList.Remove(object value)
+        {
+            this.Remove((T)value);
+        }
+
+        void IList.RemoveAt(int index)
+        {
+            this.RemoveAt(index);
+        }
+
+        void ICollection.CopyTo(Array array, int index)
+        {
+            var tmp = new T[index];
+            this.CopyTo(tmp, index);
+            for (int i = 0; i < index; i++)
+            {
+                array.SetValue(tmp[i], i);
+            }
+        }
+
+        #endregion IList
+
+
+        class CycleCollectionEnumerator : IEnumerator<T>
+        {
+            private CycleCollectionProvider<T> parent;
+            private int position;
+
+            internal CycleCollectionEnumerator(CycleCollectionProvider<T> parent)
+            {
+                this.parent = parent;
+                this.position = -1;
+            }
+
+            public T Current
+            {
+                get
+                {
+
+                    if (position == -1 ||
+                        position == parent.Count)
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    return parent[position];
+                }
+            }
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose()
+            {
+                Dispose(true);
+            }
+
+            protected void Dispose(bool isDisposing)
+            {
+                if (isDisposing)
+                {
+                    GC.SuppressFinalize(this);
+                }
+            }
+
+            public bool MoveNext()
+            {
+
+                if (position != parent.Count)
+                {
+                    position++;
+                }
+                return position < parent.Count;
+            }
+
+            public void Reset()
+            {
+                position = -1;
+            }
+        }
     }
 }
