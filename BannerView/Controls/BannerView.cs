@@ -466,6 +466,7 @@ namespace BannerView.Controls
                     //}
 
                     SelectedIndex = index;
+                    UpdateLayout();
                 }
 
                 OnCycleSelectionChanged(new SelectionChangedEventArgs(new object[] { }, new object[] { SelectedIndex }));

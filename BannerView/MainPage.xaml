@@ -18,8 +18,11 @@
             <ToggleSwitch x:Name="IsScaleEnable" Header="IsScaleEnable" />
             <ToggleSwitch x:Name="IsPerspectiveEnable" Header="IsPerspectiveEnable" />
             <Slider x:Name="ItemsSpacing" Minimum="0" Maximum="200" Value="60" />
+            <Button x:Name="PlayBackward" Content="PlayBackward" Click="PlayBackward_Click" />
+            <Button x:Name="Stop" Content="Stop" Click="Stop_Click" />
+            <Button x:Name="PlayForward" Content="PlayForward" Click="PlayForward_Click" />
         </StackPanel>
-        <controls:BannerView Grid.Row="1" ItemsSource="{x:Bind List}" MaxWidth="600" MinWidth="400" MaxHeight="300" MinHeight="150" VerticalContentAlignment="Center" 
+        <controls:BannerView x:Name="Banner" Grid.Row="1" ItemsSource="{x:Bind List}" MaxWidth="600" MinWidth="400" MaxHeight="300" MinHeight="150" VerticalContentAlignment="Center" 
                              IsScaleEnable="{Binding ElementName=IsScaleEnable,Path=IsOn}" 
                              IsPerspectiveEnable="{Binding ElementName=IsPerspectiveEnable,Path=IsOn}" 
                              ItemsSpacing="{Binding ElementName=ItemsSpacing,Path=Value}">

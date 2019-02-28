@@ -79,7 +79,7 @@ namespace BannerView.Controls
             dropShadow = Compositor.CreateDropShadow();
             dropShadow.Color = Colors.Black;
             dropShadow.Opacity = 1f;
-            dropShadow.Offset = Vector3.Zero;
+            dropShadow.Offset = new Vector3(0f,2f,0f);
             dropShadow.BlurRadius = IsSelected ? 8f : 0f;
 
             imps = Compositor.CreateImplicitAnimationCollection();

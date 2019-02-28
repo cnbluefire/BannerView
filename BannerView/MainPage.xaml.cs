@@ -40,10 +40,40 @@ namespace BannerView
             list.Add(new Uri("https://b-ssl.duitang.com/uploads/item/201802/06/2018020615123_EechF.thumb.700_0.jpeg"));
 
             List = new CycleCollectionProvider<Uri>(list);
+
+            timer = new DispatcherTimer();
+            timer.Interval = TimeSpan.FromSeconds(1d);
+            timer.Tick += Timer_Tick;
         }
+
 
         CycleCollectionProvider<Uri> List { get; set; }
         ObservableCollection<Uri> list = new ObservableCollection<Uri>();
 
+        DispatcherTimer timer;
+        bool forward = true;
+
+        private void PlayForward_Click(object sender, RoutedEventArgs e)
+        {
+            if (!timer.IsEnabled) timer.Start();
+            forward = true;
+        }
+
+        private void PlayBackward_Click(object sender, RoutedEventArgs e)
+        {
+            if (!timer.IsEnabled) timer.Start();
+            forward = false;
+        }
+
+        private void Timer_Tick(object sender, object e)
+        {
+            if (forward) Banner.SelectedIndex++;
+            else Banner.SelectedIndex--;
+        }
+
+        private void Stop_Click(object sender, RoutedEventArgs e)
+        {
+            timer.Stop();
+        }
     }
 }
