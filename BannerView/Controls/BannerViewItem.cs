@@ -57,7 +57,11 @@ namespace BannerView.Controls
             {
                 dropShadow.BlurRadius = IsSelected ? 8f : 0f;
             }
-        }
+			if(IsSelected)			
+				Canvas.SetZIndex(this, 1);
+			else
+				Canvas.SetZIndex(this, 0);
+		}
 
         private void InitComposition()
         {
